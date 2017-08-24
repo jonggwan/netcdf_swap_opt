@@ -14,3 +14,4 @@ So you can apply patch file for NetCDF 3.6.3 version and/or NetCDF 4.4.1.1 versi
     $ patch < netcdf_{NetCDF_version}_swap.patch
 
 
+Swap routine was used from https://stackoverflow.com/questions/2182002/convert-big-endian-to-little-endian-in-c-without-using-provided-func
