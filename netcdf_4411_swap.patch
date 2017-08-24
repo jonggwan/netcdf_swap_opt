@@ -1,0 +1,197 @@
+--- ncx_org.c   2017-08-23 23:11:39.000000000 -0600
++++ ncx.c       2017-08-23 23:13:13.000000000 -0600
+@@ -81,6 +81,8 @@
+ #define Min(a,b) ((a) < (b) ? (a) : (b))
+ #define Max(a,b) ((a) > (b) ? (a) : (b))
+
++#include <stdint.h>
++
+ #ifndef SIZEOF_USHORT
+ #define SIZEOF_USHORT SIZEOF_UNSIGNED_SHORT_INT
+ #endif
+@@ -145,9 +147,6 @@
+ static void
+ swapn2b(void *dst, const void *src, size_t nn)
+ {
+-       char *op = dst;
+-       const char *ip = src;
+-
+ /* unroll the following to reduce loop overhead
+  *
+  *     while(nn-- != 0)
+@@ -156,22 +155,13 @@
+  *             *op++ = *(ip++ -1);
+  *     }
+  */
+-       while(nn > 3)
+-       {
+-               *op++ = *(++ip);
+-               *op++ = *(ip++ -1);
+-               *op++ = *(++ip);
+-               *op++ = *(ip++ -1);
+-               *op++ = *(++ip);
+-               *op++ = *(ip++ -1);
+-               *op++ = *(++ip);
+-               *op++ = *(ip++ -1);
+-               nn -= 4;
+-       }
+-       while(nn-- > 0)
++       uint16_t *out = dst;
++       const uint16_t *in = src;
++       size_t n;
++
++       for(n = 0; n < nn; n++)
+        {
+-               *op++ = *(++ip);
+-               *op++ = *(ip++ -1);
++               out[n] = (in[n] << 8) | (in[n] >> 8);
+        }
+ }
+
+@@ -198,9 +188,6 @@
+ static void
+ swapn4b(void *dst, const void *src, size_t nn)
+ {
+-       char *op = dst;
+-       const char *ip = src;
+-
+ /* unroll the following to reduce loop overhead
+  *     while(nn-- != 0)
+  *     {
+@@ -212,36 +199,14 @@
+  *             ip += 4;
+  *     }
+  */
+-       while(nn > 3)
+-       {
+-               op[0] = ip[3];
+-               op[1] = ip[2];
+-               op[2] = ip[1];
+-               op[3] = ip[0];
+-               op[4] = ip[7];
+-               op[5] = ip[6];
+-               op[6] = ip[5];
+-               op[7] = ip[4];
+-               op[8] = ip[11];
+-               op[9] = ip[10];
+-               op[10] = ip[9];
+-               op[11] = ip[8];
+-               op[12] = ip[15];
+-               op[13] = ip[14];
+-               op[14] = ip[13];
+-               op[15] = ip[12];
+-               op += 16;
+-               ip += 16;
+-               nn -= 4;
+-       }
+-       while(nn-- > 0)
++       uint32_t *out = dst;
++       const uint32_t *in = src;
++       size_t n;
++
++       for(n = 0; n < nn; n++)
+        {
+-               op[0] = ip[3];
+-               op[1] = ip[2];
+-               op[2] = ip[1];
+-               op[3] = ip[0];
+-               op += 4;
+-               ip += 4;
++               uint32_t v = ((in[n] << 8) & 0xFF00FF00) | ((in[n] >> 8) & 0x00FF00FF);
++               out[n] = (v << 16) | (v >> 16);
+        }
+ }
+
+@@ -249,18 +214,17 @@
+ static void
+ swap8b(void *dst, const void *src)
+ {
+-       char *op = dst;
+-       const char *ip = src;
+ #  ifndef FLOAT_WORDS_BIGENDIAN
+-       op[0] = ip[7];
+-       op[1] = ip[6];
+-       op[2] = ip[5];
+-       op[3] = ip[4];
+-       op[4] = ip[3];
+-       op[5] = ip[2];
+-       op[6] = ip[1];
+-       op[7] = ip[0];
++       uint64_t *out = dst;
++       const uint64_t *in = src;
++
++       uint64_t v1 = ((*in <<  8) & 0xFF00FF00FF00FF00ULL) | ((*in >>  8) & 0x00FF00FF00FF00FFULL);
++       uint64_t v2 = ((v1  << 16) & 0xFFFF0000FFFF0000ULL) | ((v1  >> 16) & 0x0000FFFF0000FFFFULL);
++       *out = (v2 << 32) | (v2 >> 32);
+ #  else
++       char *op = dst;
++       const char *ip = src;
++
+        op[0] = ip[3];
+        op[1] = ip[2];
+        op[2] = ip[1];
+@@ -277,9 +241,6 @@
+ static void
+ swapn8b(void *dst, const void *src, size_t nn)
+ {
+-       char *op = dst;
+-       const char *ip = src;
+-
+ /* unroll the following to reduce loop overhead
+  *     while(nn-- != 0)
+  *     {
+@@ -296,42 +257,20 @@
+  *     }
+  */
+ #  ifndef FLOAT_WORDS_BIGENDIAN
+-       while(nn > 1)
+-       {
+-               op[0] = ip[7];
+-               op[1] = ip[6];
+-               op[2] = ip[5];
+-               op[3] = ip[4];
+-               op[4] = ip[3];
+-               op[5] = ip[2];
+-               op[6] = ip[1];
+-               op[7] = ip[0];
+-               op[8] = ip[15];
+-               op[9] = ip[14];
+-               op[10] = ip[13];
+-               op[11] = ip[12];
+-               op[12] = ip[11];
+-               op[13] = ip[10];
+-               op[14] = ip[9];
+-               op[15] = ip[8];
+-               op += 16;
+-               ip += 16;
+-               nn -= 2;
+-       }
+-       while(nn-- != 0)
+-       {
+-               op[0] = ip[7];
+-               op[1] = ip[6];
+-               op[2] = ip[5];
+-               op[3] = ip[4];
+-               op[4] = ip[3];
+-               op[5] = ip[2];
+-               op[6] = ip[1];
+-               op[7] = ip[0];
+-               op += 8;
+-               ip += 8;
++       uint64_t *out = dst;
++       const uint64_t *in = src;
++       size_t n;
++
++       for(n = 0; n < nn; n++)
++       {
++               uint64_t v1 = ((in[n] <<  8) & 0xFF00FF00FF00FF00ULL) | ((in[n] >>  8) & 0x00FF00FF00FF00FFULL);
++               uint64_t v2 = ((v1    << 16) & 0xFFFF0000FFFF0000ULL) | ((v1    >> 16) & 0x0000FFFF0000FFFFULL);
++               out[n] = (v2 << 32) | (v2 >> 32);
+        }
+ #  else
++       char *op = dst;
++       const char *ip = src;
++
+        while(nn-- != 0)
+        {
+                op[0] = ip[3];
